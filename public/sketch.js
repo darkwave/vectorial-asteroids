@@ -1,16 +1,34 @@
 const NUM_OF_ASTEROIDS = 100;
-const MISSILES_SPEED = 20;
-const MISSILES_TTL = 2000;
-const MISSILES_SIZE = 10;
-const FIRE_RATE = 300;
 
 const HUGE = 200;
 const BIG = 100;
 const SMALL = 30;
 
+const MISSILES_SPEED = 20;
+const MISSILES_TTL = 2000;
+const MISSILES_SIZE = 10;
+const FIRE_RATE = 300;
+
+const VELOCITY_MAX = 10;
+const VELOCITY_MIN = 0.5;
+
+const FORWARD = 0;
+const TURN_LEFT = 1;
+const TURN_RIGHT = 2;
+const BACKWARD = 3;
+const FIRE_FRONT = 4;
+const FIRE_TURRET = 5;
+
+var controls = [false, false, false, false, false, false];
+
+
 var asteroids = [];
 var missiles = [];
 var explosions = [];
+
+var freshAsteroids = [];
+var freshMissiles = [];
+var freshExplosions = [];
 
 var cam;
 
@@ -19,22 +37,43 @@ var half_height;
 
 var lastShot = 0;
 var spaceShip;
+var shield = 1;
 
 var mX, mY;
-var freshAsteroids = [];
-var freshMissiles = [];
 
 var timestamp = 0;
 
+var boldFont;
+
+function preload() {
+  boldFont = loadFont("fonts/Goldman-Bold.ttf", function(){}, function(error) {
+    console.error(error);
+  });
+}
 
 function setup() {
-  createCanvas(800, 800, WEBGL);
+  createCanvas(displayWidth, displayHeight, WEBGL);
   colorMode(HSB);
+
+  textFont(boldFont);
+  textSize(42);
+  textAlign(CENTER, CENTER);
+
   half_width = 0;
   half_height = 0;
-  cam = createVector(0, 0, 0.8);
-  
-  
+  cam = createVector(0, 0, 1);
+  initGame();  
+}
+
+function initGame() {
+  asteroids = [];
+  missiles = [];
+  explosions = [];
+  freshMissiles = [];
+  freshExplosions = [];
+  freshAsteroids = [];
+  shield = 1;
+
   for (var a = 0; a < NUM_OF_ASTEROIDS; a++) {
     var angle = random(-PI, PI);
     var distance = random(300, 4000);
@@ -51,7 +90,6 @@ function setup() {
     asteroids.push(asteroid);
   }
   spaceShip = createSpaceShip(0, 0, 30);
-  
 }
 
 function draw() {
@@ -59,11 +97,46 @@ function draw() {
   mX = (mouseX - (width / 2) + cam.x) / cam.z;
   mY = (mouseY - (height / 2) + cam.y) / cam.z;
   
+  if (state == START) {
+    updateCamera();
+    displayGame();
+    text("CLICK TO START", 0, 0);
+  } else if (state == PLAYING) {
+    controlElement(spaceShip);
+    updateCamera();
+    updateGame();
+    displayGame();
+  } else if (state == GAMEOVER) {
+    updateGame();
+    displayGame();
+    text("YOU LOOSE", 0, 0);
+  }
   
+  
+}
 
-  controlElement(spaceShip);
-  
+function updateCamera() {
+  cam.x = spaceShip.x * cam.z;  
+  cam.y = spaceShip.y * cam.z;
+}
+
+function displayGame() {
+  background("#550044");
+  push();
+  translate(half_width - cam.x, half_height - cam.y);
+  scale(cam.z);
+  displayAll(asteroids);
+  displayAll(missiles);
+  displayAll(explosions);
+  display(spaceShip);
+  pop();
+}
+
+function updateGame() {
   collisionDetection(missiles, asteroids, missileToAsteroidCollision);
+  collisionDetection([spaceShip], asteroids, spaceShipToAsteroidCollision);
+
+
   missiles = prune(missiles);
   asteroids = prune(asteroids);
   explosions = prune(explosions);
@@ -78,40 +151,55 @@ function draw() {
   updateAll(missiles);
   updateAll(explosions);
   update(spaceShip);
-  
-  cam.x = spaceShip.x * cam.z;  
-  cam.y = spaceShip.y * cam.z;
-  
-  background("#550044");
-  push();
-  translate(half_width - cam.x, half_height - cam.y);
-  scale(cam.z);
-  displayAll(asteroids);
-  displayAll(missiles);
-  displayAll(explosions);
-  display(spaceShip);
-  pop();
-  
 }
 
 function mousePressed() {
-  turrets = true;
+  if (state == PLAYING) {
+    controls[FIRE_TURRET] = true;
+  } else if (state == START) {
+    changeState(PLAYING);
+  } else if (state == GAMEOVER) {
+    changeState(START);
+  }
 }
 function mouseReleased() {
-  turrets = false;
+  controls[FIRE_TURRET] = false;
 }
 
-function shotTurrets() {
-  
-  var mouseVector = createVector(mX - spaceShip.x, mY - spaceShip.y);
-  var normalizedSpaceShipVector = createVector(0, -1);
-  var angle = normalizedSpaceShipVector.angleBetween(mouseVector)
-  var m = createMissile(spaceShip.x, spaceShip.y, angle);
-  var impulseX = sin(angle) * MISSILES_SPEED;
-  var impulseY = cos(angle) * MISSILES_SPEED;
-  m.velocity.add(impulseX, impulseY);
-  //print(m)
-  freshMissiles.push(m);
+function keyPressed() {
+  if (keyCode == UP_ARROW || key == 'w') {
+    controls[FORWARD] = true;
+  }
+  if (keyCode == LEFT_ARROW || key == 'a') {
+    controls[TURN_LEFT] = true;
+  }
+  if (keyCode == RIGHT_ARROW || key == 'd') {
+    controls[TURN_RIGHT] = true;
+  }
+  if (keyCode == DOWN_ARROW || key == 's') {
+    controls[BACKWARD] = true;
+  }
+  if (key == ' ') {
+    controls[FIRE_FRONT] = true;
+  }
+}
+
+function keyReleased() {
+  if (keyCode == UP_ARROW || key == 'w') {
+    controls[FORWARD] = false;
+  }
+  if (keyCode == LEFT_ARROW || key == 'a') {
+    controls[TURN_LEFT] = false;
+  }
+  if (keyCode == RIGHT_ARROW || key == 'd') {
+    controls[TURN_RIGHT] = false;
+  }
+  if (keyCode == DOWN_ARROW || key == 's') {
+    controls[BACKWARD] = false;
+  }
+  if (key == ' ') {
+    controls[FIRE_FRONT] = false;
+  }
 }
 
 function updateAll(elements) {
@@ -151,6 +239,38 @@ function crackAsteroid(asteroid, x, y) {
     freshAsteroids.push(newAsteroid);
   }
 }
+const GAMEOVER = -1;
+const START = 0;
+const PLAYING = 1;
+
+var state = START;
+
+function changeState(newState) {
+  console.log(state, newState);
+  if (state == GAMEOVER && newState == START) {
+    initGame();
+  }
+  state = newState;
+}
+
+function spaceShipToAsteroidCollision(ship, asteroid) {
+  if (asteroid.size > HUGE) {
+    shield -= 0.5;
+  } else if (asteroid.size > BIG) {
+    shield -= 0.3;
+  } else if (asteroid.size > SMALL) {
+    shield -= 0.2;
+  } else {
+    shield -= 0.1;
+  }
+  
+  if (shield > 0) {
+    asteroid.dead = true;
+    crackAsteroid(asteroid, ship.x, ship.y);
+  } else {
+    changeState(GAMEOVER);
+  }
+}
 
 function missileToAsteroidCollision(missile, asteroid) {
   if (missile.dead)
@@ -180,82 +300,58 @@ function update(element) {
   if (element.post)
       element.post();
 }
-var turrets = false;
+
 function controlElement(element) {
-  if (turrets && millis() - lastShot > FIRE_RATE) {
+  if (controls[FIRE_TURRET] && millis() - lastShot > FIRE_RATE) {
     lastShot = millis();
     shotTurrets();
   }
-  if (fire && millis() - lastShot > FIRE_RATE) {
+
+  if (controls[FIRE_FRONT] && millis() - lastShot > FIRE_RATE) {
     lastShot = millis();
     var m = createMissile(element.x, element.y, element.angle);
     var impulseX = sin(m.angle) * MISSILES_SPEED;
     var impulseY = cos(m.angle) * MISSILES_SPEED;
     m.velocity.add(impulseX, impulseY);
     missiles.push(m);
-  }
+  }  
   
-  
-  if (right) {
+  if (controls[TURN_RIGHT]) {
     element.angle += radians(5);
   }
-  if (left) {
+  if (controls[TURN_LEFT]) {
     element.angle -= radians(5);
   }
-  if (forward) {
+
+
+  var velocity = element.velocity.mag();
+
+  if (controls[FORWARD] && velocity < VELOCITY_MAX) {
     var impulseX = sin(element.angle) * 0.1;
     var impulseY = cos(element.angle) * 0.1;
     element.velocity.add(impulseX, impulseY)
   }
-  
-  if (backward) {
+
+  if (controls[BACKWARD]) {
     element.velocity.x *= 0.9;
     element.velocity.y *= 0.9;
-    
-    if (element.velocity.mag() < 0.5) {
+    if (velocity < VELOCITY_MIN) {
       element.velocity.x = 0;
       element.velocity.y = 0;
     }
   }
+
 }
 
-var forward, left, right, backward, fire;
-
-function keyPressed() {
-  if (keyCode == UP_ARROW || key == 'w') {
-    forward = true;
-  }
-  if (keyCode == LEFT_ARROW || key == 'a') {
-    left = true;
-  }
-  if (keyCode == RIGHT_ARROW || key == 'd') {
-    right = true;
-  }
-  if (keyCode == DOWN_ARROW || key == 's') {
-    backward = true;
-  }
-  if (key == ' ') {
-    fire = true;
-  }
-}
-
-
-function keyReleased() {
-  if (keyCode == UP_ARROW || key == 'w') {
-    forward = false;
-  }
-  if (keyCode == LEFT_ARROW || key == 'a') {
-    left = false;
-  }
-  if (keyCode == RIGHT_ARROW || key == 'd') {
-    right = false;
-  }
-  if (keyCode == DOWN_ARROW || key == 's') {
-    backward = false;
-  }
-  if (key == ' ') {
-    fire = false;
-  }
+function shotTurrets() {
+  var mouseVector = createVector(mX - spaceShip.x, mY - spaceShip.y);
+  var normalizedSpaceShipVector = createVector(0, -1);
+  var angle = normalizedSpaceShipVector.angleBetween(mouseVector)
+  var m = createMissile(spaceShip.x, spaceShip.y, angle);
+  var impulseX = sin(angle) * MISSILES_SPEED;
+  var impulseY = cos(angle) * MISSILES_SPEED;
+  m.velocity.add(impulseX, impulseY);
+  freshMissiles.push(m);
 }
 
 function display(element) {
@@ -317,7 +413,6 @@ function createExplosionRay(x, y, vertices, escapeAngle) {
   return newRay;
 }
 
-var freshExplosions = [];
 function createExplosion(x, y) {
   var angleIncrement = random(50, 80);
   for (var a = 0; a < 360; a += angleIncrement) {
@@ -376,7 +471,7 @@ function createAsteroid(x, y, radius) {
     y,
     angle: 0,
     vertices,
-    color: color(338, 100, random(80, 100)),
+    color: color(338, 100, random(50, 100)),
     velocity: createVector(0, 0),
     size: radius
   }
