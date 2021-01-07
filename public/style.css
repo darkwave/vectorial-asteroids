@@ -1,12 +1,66 @@
+/*
+    This file is part of Destructible Asteroid by Massimo Avvisati
+
+    Destructible Asteroid is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Destructible Asteroid is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Destructible Asteroid.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 html, body {
   margin: 0;
   padding: 0;
 }
 
 body {
+  width: 100vw;
+  height: 100vh;
+  display:flex;
+  position: relative;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
 canvas {
   display: block;
+}
+
+#hud {
+  position: absolute;
+  top: 2vw;
+  left: 2vw;
+  width: 20vw;
+  display: flex;
+  flex-direction: column;
+}
+
+div.bars {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 2vw;
+  background: linear-gradient(90deg, #ffffff5e, #ffffff00);
+  border-radius: 2em;
+  margin-bottom: 1em;
+}
+
+#shield {
+  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+}
+
+#oxygen {
+  background: linear-gradient(90deg, #00c3ff, #4a60c3);
+}
+
+#mineral {
+  background: linear-gradient(90deg, #ffae00, #ff5100)
 }
